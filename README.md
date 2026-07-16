@@ -42,29 +42,25 @@ Luồng kiểm tra:
 -> kiểm tra record có nối chuỗi đúng không
 ```
 
-## Cách chạy demo từ đầu
+## Cách chạy demo
+
+```powershell
+docker compose up --build
+```
+
+Lệnh trên làm các việc sau:
+
+- build smart contract bằng Hardhat;
+- build ASP.NET Core API;
+- khởi động PostgreSQL, pgAdmin và 2 node Besu;
+- tự deploy smart contract nếu database chưa có contract address;
+- chạy API tại `http://localhost:5000`.
+
+Nếu muốn xóa sạch dữ liệu cũ rồi chạy lại từ đầu:
 
 ```powershell
 docker compose down -v
-docker compose up -d
-```
-
-Deploy smart contract:
-
-```powershell
-dotnet run -- deploy
-```
-
-Chạy API:
-
-```powershell
-dotnet run
-```
-
-API mặc định chạy tại:
-
-```text
-http://localhost:5000
+docker compose up --build
 ```
 
 ## Cách test demo

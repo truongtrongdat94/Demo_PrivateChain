@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+.git/
+.agents/
+.codex/
+contract/artifacts/
+contract/cache/
+contract/node_modules/
+**/*.user
+**/*.suo

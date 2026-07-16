@@ -15,6 +15,27 @@ x-besu-healthcheck: &besu-healthcheck
   start_period: 15s
 
 services:
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      besu-b:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://+:5000
+      AutoDeployContract: "true"
+      ConnectionStrings__HashDemo: Host=postgres;Port=5432;Database=hash_demo;Username=hash_demo;Password=hash_demo
+      Besu__RpcUrl: http://besu-b:8545
+      Besu__ChainId: "1337"
+    ports:
+      - "5000:5000"
+    networks:
+      default:
+      besu-b-net:
+
   besu-a:
     image: hyperledger/besu:26.6.1
     user: "0:0"

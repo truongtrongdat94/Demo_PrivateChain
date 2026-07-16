@@ -22,20 +22,23 @@ public sealed record ChainAnchorEvent(
 
 public sealed class BesuContractService
 {
-    // Test wallet + node B only. Hardcoded intentionally for this demo.
-    private const string BesuRpcUrl = "http://127.0.0.1:28546";
-    private const long ChainId = 1337;
-    private const string AccountPrivateKey = "0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63";
+    private const string DefaultBesuRpcUrl = "http://127.0.0.1:28546";
+    private const long DefaultChainId = 1337;
+    private const string DefaultAccountPrivateKey =
+        "0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63";
 
     private readonly RecordRepository _repository;
     private readonly Web3 _web3;
     private readonly SemaphoreSlim _anchorLock = new(1, 1);
 
-    public BesuContractService(RecordRepository repository)
+    public BesuContractService(RecordRepository repository, IConfiguration configuration)
     {
         _repository = repository;
-        var account = new Account(AccountPrivateKey, ChainId);
-        _web3 = new Web3(account, BesuRpcUrl);
+        var besuRpcUrl = configuration["Besu:RpcUrl"] ?? DefaultBesuRpcUrl;
+        var chainId = configuration.GetValue("Besu:ChainId", DefaultChainId);
+        var accountPrivateKey = configuration["Besu:AccountPrivateKey"] ?? DefaultAccountPrivateKey;
+        var account = new Account(accountPrivateKey, chainId);
+        _web3 = new Web3(account, besuRpcUrl);
     }
 
     public async Task<ContractDeployment> DeployAsync(CancellationToken cancellationToken)
@@ -52,6 +55,14 @@ public sealed class BesuContractService
             contractAddress,
             receipt.TransactionHash,
             (long)receipt.BlockNumber.Value);
+    }
+
+    public async Task<ContractDeployment?> DeployIfMissingAsync(CancellationToken cancellationToken)
+    {
+        var currentAddress = await _repository.GetContractAddressAsync(cancellationToken);
+        return string.IsNullOrWhiteSpace(currentAddress)
+            ? await DeployAsync(cancellationToken)
+            : null;
     }
 
     public async Task<HashAnchor> AnchorHashAsync(

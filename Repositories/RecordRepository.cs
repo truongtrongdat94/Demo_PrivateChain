@@ -13,9 +13,16 @@ public sealed record StoredRecord(
 
 public sealed class RecordRepository
 {
-    // Local PostgreSQL container only. Hardcoded intentionally for this demo.
-    private const string ConnectionString =
+    private const string DefaultConnectionString =
         "Host=127.0.0.1;Port=25432;Database=hash_demo;Username=hash_demo;Password=hash_demo";
+
+    private readonly string _connectionString;
+
+    public RecordRepository(IConfiguration configuration)
+    {
+        _connectionString = configuration.GetConnectionString("HashDemo")
+            ?? DefaultConnectionString;
+    }
 
     public async Task<StoredRecord> SaveRecordAsync(
         ProcessedRecord record,
@@ -32,7 +39,7 @@ public sealed class RecordRepository
                       payload_hash, previous_hash, created_at;
             """;
 
-        await using var connection = new NpgsqlConnection(ConnectionString);
+        await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("id", Guid.NewGuid());
@@ -58,7 +65,7 @@ public sealed class RecordRepository
             WHERE sequence = @sequence;
             """;
 
-        await using var connection = new NpgsqlConnection(ConnectionString);
+        await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("sequence", sequence);
@@ -76,7 +83,7 @@ public sealed class RecordRepository
             """;
 
         var records = new List<StoredRecord>();
-        await using var connection = new NpgsqlConnection(ConnectionString);
+        await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -90,7 +97,7 @@ public sealed class RecordRepository
     public async Task<string?> GetContractAddressAsync(CancellationToken cancellationToken)
     {
         const string sql = "SELECT value FROM runtime_settings WHERE key = 'contract_address';";
-        await using var connection = new NpgsqlConnection(ConnectionString);
+        await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
         return await command.ExecuteScalarAsync(cancellationToken) as string;
@@ -104,7 +111,7 @@ public sealed class RecordRepository
             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
             """;
 
-        await using var connection = new NpgsqlConnection(ConnectionString);
+        await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("address", address);

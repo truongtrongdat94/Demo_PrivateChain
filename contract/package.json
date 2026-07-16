@@ -1,0 +1,11 @@
+{
+  "name": "dotnet-besu-hash-demo-contract",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "hardhat compile"
+  },
+  "devDependencies": {
+    "hardhat": "^3.0.0"
+  }
+}

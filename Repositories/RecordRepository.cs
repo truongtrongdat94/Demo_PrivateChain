@@ -1,20 +1,12 @@
 using Npgsql;
+using HashAnchorDemo.Domain;
 
 namespace HashAnchorDemo;
-
-public sealed record StoredRecord(
-    Guid Id,
-    long Sequence,
-    string OriginalJson,
-    string CanonicalJson,
-    string PayloadHash,
-    string PreviousHash,
-    DateTimeOffset CreatedAt);
 
 public sealed class RecordRepository
 {
     private const string DefaultConnectionString =
-        "Host=127.0.0.1;Port=25432;Database=hash_demo;Username=hash_demo;Password=hash_demo";
+        "Host=127.0.0.1;Port=24832;Database=hash_demo;Username=hash_demo;Password=hash_demo";
 
     private readonly string _connectionString;
 
@@ -26,58 +18,57 @@ public sealed class RecordRepository
 
     public async Task<StoredRecord> SaveRecordAsync(
         ProcessedRecord record,
-        long sequence,
-        string previousHash,
+        HashAnchor anchor,
         CancellationToken cancellationToken)
     {
         const string sql = """
             INSERT INTO records (
-                id, sequence, original_json, canonical_json, payload_hash, previous_hash)
+                contract_address, sequence, original_json)
             VALUES (
-                @id, @sequence, @originalJson, @canonicalJson, @payloadHash, @previousHash)
-            RETURNING id, sequence, original_json, canonical_json,
-                      payload_hash, previous_hash, created_at;
+                @contractAddress, @sequence, @originalJson)
+            RETURNING contract_address, sequence, original_json;
             """;
 
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.AddWithValue("id", Guid.NewGuid());
-        command.Parameters.AddWithValue("sequence", sequence);
+        command.Parameters.AddWithValue("contractAddress", anchor.ContractAddress);
+        command.Parameters.AddWithValue("sequence", anchor.Sequence);
         command.Parameters.AddWithValue("originalJson", record.OriginalJson);
-        command.Parameters.AddWithValue("canonicalJson", record.CanonicalJson);
-        command.Parameters.AddWithValue("payloadHash", record.Sha256);
-        command.Parameters.AddWithValue("previousHash", previousHash);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         await reader.ReadAsync(cancellationToken);
         return ReadRecord(reader);
     }
 
-    public async Task<StoredRecord?> FindBySequenceAsync(
-        long sequence,
+    public async Task<IReadOnlyList<StoredRecord>> ListRecordsByContractAddressAsync(
+        string contractAddress,
         CancellationToken cancellationToken)
     {
         const string sql = """
-            SELECT id, sequence, original_json, canonical_json,
-                   payload_hash, previous_hash, created_at
+            SELECT contract_address, sequence, original_json
             FROM records
-            WHERE sequence = @sequence;
+            WHERE contract_address = @contractAddress
+            ORDER BY sequence;
             """;
 
+        var records = new List<StoredRecord>();
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.AddWithValue("sequence", sequence);
+        command.Parameters.AddWithValue("contractAddress", contractAddress);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        return await reader.ReadAsync(cancellationToken) ? ReadRecord(reader) : null;
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(ReadRecord(reader));
+        }
+        return records;
     }
 
     public async Task<IReadOnlyList<StoredRecord>> ListRecordsAsync(CancellationToken cancellationToken)
     {
         const string sql = """
-            SELECT id, sequence, original_json, canonical_json,
-                   payload_hash, previous_hash, created_at
+            SELECT contract_address, sequence, original_json
             FROM records
             ORDER BY sequence DESC;
             """;
@@ -114,16 +105,12 @@ public sealed class RecordRepository
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.AddWithValue("address", address);
+        command.Parameters.AddWithValue("address", address.ToLowerInvariant());
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static StoredRecord ReadRecord(NpgsqlDataReader reader) => new(
-        reader.GetGuid(0),
+        reader.GetString(0),
         reader.GetInt64(1),
-        reader.GetString(2),
-        reader.GetString(3),
-        reader.GetString(4),
-        reader.GetString(5),
-        reader.GetFieldValue<DateTimeOffset>(6));
+        reader.GetString(2));
 }

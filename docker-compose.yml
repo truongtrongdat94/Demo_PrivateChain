@@ -1,153 +1,124 @@
-name: dotnet-besu-hash-demo
-
-x-besu-healthcheck: &besu-healthcheck
-  test:
-    - CMD
-    - bash
-    - -ec
-    - >-
-      exec 3<>/dev/tcp/127.0.0.1/8545;
-      printf 'POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 59\r\nConnection: close\r\n\r\n{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' >&3;
-      grep -q '"result"[[:space:]]*:[[:space:]]*"0x539"' <&3
-  interval: 3s
-  timeout: 3s
-  retries: 40
-  start_period: 15s
+name: fabric-hash-demo
 
 services:
-  app:
-    build:
-      context: .
-    restart: unless-stopped
+  orderer:
+    image: hyperledger/fabric-orderer:2.5.16
+    command: orderer
+    environment:
+      FABRIC_LOGGING_SPEC: INFO
+      ORDERER_GENERAL_LISTENADDRESS: 0.0.0.0
+      ORDERER_GENERAL_LISTENPORT: "7050"
+      ORDERER_GENERAL_LOCALMSPID: OrdererMSP
+      ORDERER_GENERAL_LOCALMSPDIR: /identity/msp
+      ORDERER_GENERAL_TLS_ENABLED: "true"
+      ORDERER_GENERAL_TLS_PRIVATEKEY: /identity/tls/server.key
+      ORDERER_GENERAL_TLS_CERTIFICATE: /identity/tls/server.crt
+      ORDERER_GENERAL_TLS_ROOTCAS: "[/identity/tls/ca.crt]"
+      ORDERER_GENERAL_BOOTSTRAPMETHOD: none
+      ORDERER_CHANNELPARTICIPATION_ENABLED: "true"
+      ORDERER_ADMIN_LISTENADDRESS: 0.0.0.0:7053
+      ORDERER_ADMIN_TLS_ENABLED: "true"
+      ORDERER_ADMIN_TLS_PRIVATEKEY: /identity/tls/server.key
+      ORDERER_ADMIN_TLS_CERTIFICATE: /identity/tls/server.crt
+      ORDERER_ADMIN_TLS_ROOTCAS: "[/identity/tls/ca.crt]"
+      ORDERER_ADMIN_TLS_CLIENTROOTCAS: "[/identity/tls/ca.crt]"
+      ORDERER_ADMIN_TLS_CLIENTAUTHREQUIRED: "true"
+      ORDERER_OPERATIONS_LISTENADDRESS: 0.0.0.0:9443
+    volumes:
+      - ./config/fabric/credentials/ordererOrganizations/example.com/orderers/orderer.example.com/msp:/identity/msp:ro
+      - ./config/fabric/credentials/ordererOrganizations/example.com/orderers/orderer.example.com/tls:/identity/tls:ro
+      - orderer-data:/var/hyperledger/production/orderer
+    networks:
+      fabric-net:
+        aliases:
+          - orderer.example.com
+
+  peer0-org1:
+    image: hyperledger/fabric-peer:2.5.16
+    command: peer node start
+    environment: &peer-common
+      FABRIC_LOGGING_SPEC: INFO
+      CORE_PEER_TLS_ENABLED: "true"
+      CORE_PEER_ADDRESS: peer0.org1.example.com:7051
+      CORE_PEER_LISTENADDRESS: 0.0.0.0:7051
+      CORE_PEER_CHAINCODEADDRESS: peer0.org1.example.com:7052
+      CORE_PEER_CHAINCODELISTENADDRESS: 0.0.0.0:7052
+      CORE_PEER_GOSSIP_BOOTSTRAP: peer0.org1.example.com:7051
+      CORE_PEER_GOSSIP_EXTERNALENDPOINT: peer0.org1.example.com:7051
+      CORE_PEER_GOSSIP_USELEADERELECTION: "false"
+      CORE_PEER_GOSSIP_ORGLEADER: "true"
+      CORE_PEER_LOCALMSPID: Org1MSP
+      CORE_PEER_MSPCONFIGPATH: /identity/msp
+      CORE_PEER_TLS_CERT_FILE: /identity/tls/server.crt
+      CORE_PEER_TLS_KEY_FILE: /identity/tls/server.key
+      CORE_PEER_TLS_ROOTCERT_FILE: /identity/tls/ca.crt
+      CORE_PEER_FILESYSTEMPATH: /var/hyperledger/production
+      CORE_OPERATIONS_LISTENADDRESS: 0.0.0.0:9443
+    volumes:
+      - ./config/fabric/credentials/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp:/identity/msp:ro
+      - ./config/fabric/credentials/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls:/identity/tls:ro
+      - peer0-org1-data:/var/hyperledger/production
+    networks:
+      fabric-net:
+        aliases:
+          - peer0.org1.example.com
+
+  peer0-org2:
+    image: hyperledger/fabric-peer:2.5.16
+    command: peer node start
+    environment:
+      <<: *peer-common
+      CORE_PEER_ADDRESS: peer0.org2.example.com:7051
+      CORE_PEER_CHAINCODEADDRESS: peer0.org2.example.com:7052
+      CORE_PEER_GOSSIP_BOOTSTRAP: peer0.org2.example.com:7051
+      CORE_PEER_GOSSIP_EXTERNALENDPOINT: peer0.org2.example.com:7051
+      CORE_PEER_LOCALMSPID: Org2MSP
+      CORE_PEER_MSPCONFIGPATH: /identity/msp
+      CORE_PEER_TLS_CERT_FILE: /identity/tls/server.crt
+      CORE_PEER_TLS_KEY_FILE: /identity/tls/server.key
+      CORE_PEER_TLS_ROOTCERT_FILE: /identity/tls/ca.crt
+    volumes:
+      - ./config/fabric/credentials/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/msp:/identity/msp:ro
+      - ./config/fabric/credentials/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls:/identity/tls:ro
+      - peer0-org2-data:/var/hyperledger/production
+    networks:
+      fabric-net:
+        aliases:
+          - peer0.org2.example.com
+
+  network-init:
+    image: hyperledger/fabric-tools:2.5.16
+    command: ["bash", "/scripts/network-init.sh"]
     depends_on:
-      besu-b:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-    environment:
-      AutoDeployContract: "true"
-      ConnectionStrings__HashDemo: Host=postgres;Port=5432;Database=hash_demo;Username=hash_demo;Password=hash_demo
-      Besu__RpcUrl: http://besu-b:8545
-      Besu__ChainId: "1337"
-    ports:
-      - "5000:5000"
-    networks:
-      default:
-      besu-b-net:
-
-  besu-a:
-    image: hyperledger/besu:26.6.1
-    user: "0:0"
-    entrypoint: ["/opt/besu/bin/besu"]
-    restart: unless-stopped
-    command:
-      - --profile=ENTERPRISE
-      - --data-path=/var/lib/besu
-      - --genesis-file=/config/genesis.json
-      - --node-private-key-file=/config/node-key
-      - --network-id=1337
-      - --p2p-interface=0.0.0.0
-      - --p2p-host=192.168.65.254
-      - --p2p-port=31311
-      - --discovery-enabled=false
-      - --nat-method=NONE
-      - --min-gas-price=0
-      - --rpc-http-enabled=true
-      - --rpc-http-host=0.0.0.0
-      - --rpc-http-port=8545
-      - --rpc-http-api=ETH
-      - --host-allowlist=localhost,127.0.0.1,besu-a
+      orderer:
+        condition: service_started
+      peer0-org1:
+        condition: service_started
+      peer0-org2:
+        condition: service_started
     volumes:
-      - ./config/besu/genesis.json:/config/genesis.json:ro
-      - ./config/besu/server-a-key:/config/node-key:ro
-      - besu-a-data:/var/lib/besu
-    ports:
-      - "127.0.0.1:28545:8545"
-      - "31311:31311/tcp"
-    healthcheck: *besu-healthcheck
+      - ./config/fabric/credentials:/credentials:ro
+      - ./config/fabric/hashchannel.block:/config/hashchannel.block:ro
+      - ./scripts/fabric/network-init.sh:/scripts/network-init.sh:ro
     networks:
-      besu-a-net:
-        ipv4_address: 172.31.1.2
+      - fabric-net
 
-  besu-b:
-    image: hyperledger/besu:26.6.1
-    user: "0:0"
-    entrypoint: ["/opt/besu/bin/besu"]
-    restart: unless-stopped
-    command:
-      - --profile=ENTERPRISE
-      - --data-path=/var/lib/besu
-      - --genesis-file=/config/genesis.json
-      - --node-private-key-file=/config/node-key
-      - --network-id=1337
-      - --p2p-interface=0.0.0.0
-      - --p2p-host=192.168.65.254
-      - --p2p-port=31312
-      - --discovery-enabled=false
-      - --static-nodes-file=/config/static-nodes.json
-      - --nat-method=NONE
-      - --min-gas-price=0
-      - --rpc-http-enabled=true
-      - --rpc-http-host=0.0.0.0
-      - --rpc-http-port=8545
-      - --rpc-http-api=ETH
-      - --host-allowlist=localhost,127.0.0.1,besu-b
+  fabric-cli:
+    image: hyperledger/fabric-tools:2.5.16
+    profiles: ["tools"]
+    command: ["bash"]
+    stdin_open: true
+    tty: true
     volumes:
-      - ./config/besu/genesis.json:/config/genesis.json:ro
-      - ./config/besu/server-b-key:/config/node-key:ro
-      - ./config/besu/static-nodes.json:/config/static-nodes.json:ro
-      - besu-b-data:/var/lib/besu
-    ports:
-      - "127.0.0.1:28546:8545"
-      - "31312:31312/tcp"
-    healthcheck: *besu-healthcheck
+      - ./config/fabric/credentials:/credentials:ro
+      - ./config/fabric/hashchannel.block:/config/hashchannel.block:ro
     networks:
-      besu-b-net:
-        ipv4_address: 172.31.2.2
-
-  postgres:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: hash_demo
-      POSTGRES_USER: hash_demo
-      POSTGRES_PASSWORD: hash_demo
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./db/001_create_tables.sql:/docker-entrypoint-initdb.d/001_create_tables.sql:ro
-    ports:
-      - "127.0.0.1:24832:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hash_demo -d hash_demo"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
-
-  pgadmin:
-    image: dpage/pgadmin4:9.4
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "127.0.0.1:24850:80"
+      - fabric-net
 
 networks:
-  besu-a-net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.31.1.0/24
-  besu-b-net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.31.2.0/24
+  fabric-net:
 
 volumes:
-  besu-a-data:
-  besu-b-data:
-  postgres-data:
+  orderer-data:
+  peer0-org1-data:
+  peer0-org2-data:

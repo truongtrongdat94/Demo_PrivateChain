@@ -6,7 +6,7 @@ Client / PowerShell
         v
 ASP.NET Core API
         |
-        |-- PostgreSQL: lưu JSON gốc, JSON chuẩn hóa, payloadHash
+        |-- PostgreSQL: lưu JSON gốc theo contractAddress + sequence
         |
         |-- Nethereum: gọi smart contract trên Besu
                          |
@@ -19,27 +19,27 @@ Các thành phần chính:
 - `POST /api/blockchain/anchor`: nhận JSON, tính hash, ghi blockchain, lưu database.
 - `GET /api/blockchain/records`: đọc dữ liệu đang lưu trong PostgreSQL.
 - `GET /api/blockchain/history`: đọc event từ blockchain và đối chiếu với database.
-- Smart contract `HashRegistry`: bắt buộc `sequence = lastSequence + 1` và `previousHash = lastPayloadHash`.
+- Smart contract `HashRegistry`: tự cấp `sequence` cho từng payload hash.
 
 Luồng ghi dữ liệu:
 
 ```text
 JSON payload
 -> canonical JSON
--> SHA-256 payloadHash
--> lấy lastSequence + lastPayloadHash từ contract
--> gọi anchorHash(sequence, payloadHash, previousHash)
--> lưu record vào PostgreSQL
+-> SHA-256(canonical JSON) = payloadHash
+-> gọi anchorHash(payloadHash)
+-> contract tự tạo sequence
+-> lưu { contractAddress, sequence, originalJson } vào PostgreSQL
 ```
 
 Luồng kiểm tra:
 
 ```text
 Đọc event HashAnchored từ Besu
--> tìm record PostgreSQL theo sequence
--> hash lại JSON trong DB
--> so payloadHash, previousHash, sequence
--> kiểm tra record có nối chuỗi đúng không
+-> đối chiếu đủ hai tập DB và blockchain theo contractAddress + sequence
+-> hash lại canonical JSON trong DB và so payloadHash
+-> so payloadHash tính từ JSON DB với event tương ứng
+-> phát hiện row DB thiếu, thừa hoặc trùng sequence
 ```
 
 ## Cách chạy demo
@@ -62,6 +62,8 @@ Nếu muốn xóa sạch dữ liệu cũ rồi chạy lại từ đầu:
 docker compose down -v
 docker compose up --build
 ```
+
+Phiên bản này đổi ABI contract và schema `records`, nên dữ liệu demo của phiên bản cũ phải chạy lại bằng hai lệnh trên.
 
 ## Cách test demo
 
@@ -88,9 +90,7 @@ Invoke-RestMethod -Method Post `
 Kết quả mong đợi:
 
 - Record đầu tiên có `sequence = 1`.
-- Record đầu tiên có `previousHash = 000000...000`.
 - Record thứ hai có `sequence = 2`.
-- Record thứ hai có `previousHash` bằng `payloadHash` của record thứ nhất.
 
 Đọc dữ liệu trong database:
 
@@ -106,14 +106,10 @@ Invoke-RestMethod -Uri "http://localhost:5000/api/blockchain/history" |
   ConvertTo-Json -Depth 10
 ```
 
-Các cờ kiểm tra quan trọng:
+Kết quả kiểm tra có hai mức:
 
-- `isSequenceMatch`: sequence trong DB và blockchain có khớp không.
-- `isPayloadHashMatch`: payloadHash trong DB và blockchain có khớp không.
-- `isPreviousHashMatch`: previousHash trong DB và blockchain có khớp không.
-- `isChainLinkValid`: record có nối đúng record trước không.
-- `isDatabaseContentHashValid`: JSON trong DB hash lại có còn khớp không.
-- `isMatch`: tất cả điều kiện trên đều đúng.
+- `isMatch`: record blockchain này có khớp row DB tương ứng không.
+- `isValid`: toàn bộ DB có khớp đầy đủ blockchain không.
 
 ## Đọc raw blockchain
 
@@ -138,7 +134,7 @@ Lấy event log của contract:
 
 ```powershell
 $contractAddress = "<contract address sau khi deploy>"
-$eventTopic = "0x3ef012c643ed8475171f2e03d2845940066898109e64f3da1622355e0c4f3fd9"
+$eventTopic = "0x2e4b02ef0e4ff0261d5ef64761d2819645ae0215b660e516d71af67634442edd"
 
 $body = @{
     jsonrpc = "2.0"
@@ -169,13 +165,13 @@ Trong event log:
 - `topics[1]`: `sequence`.
 - `topics[2]`: `payloadHash`.
 - `topics[3]`: `submitter`.
-- `data`: chứa `previousHash` và `anchoredAt`.
+- `data`: chứa `anchoredAt`.
 
 ## Thông tin kết nối
 
 - API: `http://localhost:5000`
 - Besu RPC: `http://127.0.0.1:28546`
-- PostgreSQL: `127.0.0.1:25432`
-- pgAdmin: `http://localhost:25050`
+- PostgreSQL: `127.0.0.1:24832`
+- pgAdmin: `http://localhost:24850`
 - pgAdmin login: `admin@example.com` / `admin`
 - PostgreSQL database/user/password: `hash_demo` / `hash_demo` / `hash_demo`

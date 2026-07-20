@@ -7,18 +7,15 @@ namespace HashAnchorDemo.Controllers;
 [Route("api/blockchain")]
 public sealed class BlockchainController : ControllerBase
 {
-    private readonly CanonicalJsonHasher _hasher;
     private readonly RecordRepository _repository;
     private readonly BesuContractService _contractService;
     private readonly HistoryService _historyService;
 
     public BlockchainController(
-        CanonicalJsonHasher hasher,
         RecordRepository repository,
         BesuContractService contractService,
         HistoryService historyService)
     {
-        _hasher = hasher;
         _repository = repository;
         _contractService = contractService;
         _historyService = historyService;
@@ -34,15 +31,13 @@ public sealed class BlockchainController : ControllerBase
             return BadRequest("Body phải là một JSON object: { ... }");
         }
 
-        var processed = _hasher.Process(payload);
-        var anchor = await _contractService.AnchorHashAsync(processed.Sha256, cancellationToken);
+        var anchored = await _contractService.AnchorPayloadAsync(payload, cancellationToken);
         var stored = await _repository.SaveRecordAsync(
-            processed,
-            anchor.Sequence,
-            anchor.PreviousHash,
+            anchored.Record,
+            anchored.Anchor,
             cancellationToken);
 
-        return Ok(new { database = stored, blockchain = anchor });
+        return Ok(new { database = stored, blockchain = anchored.Anchor });
     }
 
     [HttpGet("history")]

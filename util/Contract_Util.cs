@@ -24,24 +24,8 @@ public sealed class HashRegistryDeployment : ContractDeploymentMessage
 [Function("anchorHash")]
 public sealed class AnchorHashFunction : FunctionMessage
 {
-    [Parameter("uint256", "sequence", 1)]
-    public BigInteger Sequence { get; init; }
-
-    [Parameter("bytes32", "payloadHash", 2)]
+    [Parameter("bytes32", "payloadHash", 1)]
     public byte[] PayloadHash { get; init; } = Array.Empty<byte>();
-
-    [Parameter("bytes32", "previousHash", 3)]
-    public byte[] PreviousHash { get; init; } = Array.Empty<byte>();
-}
-
-[Function("lastSequence", "uint256")]
-public sealed class LastSequenceFunction : FunctionMessage
-{
-}
-
-[Function("lastPayloadHash", "bytes32")]
-public sealed class LastPayloadHashFunction : FunctionMessage
-{
 }
 
 [Event("HashAnchored")]
@@ -53,12 +37,9 @@ public sealed class HashAnchoredEventDto : IEventDTO
     [Parameter("bytes32", "payloadHash", 2, true)]
     public byte[] PayloadHash { get; set; } = Array.Empty<byte>();
 
-    [Parameter("bytes32", "previousHash", 3, false)]
-    public byte[] PreviousHash { get; set; } = Array.Empty<byte>();
-
-    [Parameter("address", "submitter", 4, true)]
+    [Parameter("address", "submitter", 3, true)]
     public string Submitter { get; set; } = string.Empty;
 
-    [Parameter("uint64", "anchoredAt", 5, false)]
+    [Parameter("uint64", "anchoredAt", 4, false)]
     public BigInteger AnchoredAt { get; set; }
 }

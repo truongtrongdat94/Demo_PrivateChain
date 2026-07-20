@@ -25,7 +25,6 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      ASPNETCORE_URLS: http://+:5000
       AutoDeployContract: "true"
       ConnectionStrings__HashDemo: Host=postgres;Port=5432;Database=hash_demo;Username=hash_demo;Password=hash_demo
       Besu__RpcUrl: http://besu-b:8545
@@ -56,7 +55,7 @@ services:
       - --rpc-http-enabled=true
       - --rpc-http-host=0.0.0.0
       - --rpc-http-port=8545
-      - --rpc-http-api=ETH,NET,WEB3,QBFT,ADMIN
+      - --rpc-http-api=ETH
       - --host-allowlist=localhost,127.0.0.1,besu-a
     volumes:
       - ./config/besu/genesis.json:/config/genesis.json:ro
@@ -75,9 +74,6 @@ services:
     user: "0:0"
     entrypoint: ["/opt/besu/bin/besu"]
     restart: unless-stopped
-    depends_on:
-      besu-a:
-        condition: service_healthy
     command:
       - --profile=ENTERPRISE
       - --data-path=/var/lib/besu
@@ -94,7 +90,7 @@ services:
       - --rpc-http-enabled=true
       - --rpc-http-host=0.0.0.0
       - --rpc-http-port=8545
-      - --rpc-http-api=ETH,NET,WEB3,QBFT,ADMIN
+      - --rpc-http-api=ETH
       - --host-allowlist=localhost,127.0.0.1,besu-b
     volumes:
       - ./config/besu/genesis.json:/config/genesis.json:ro
@@ -120,7 +116,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./db/001_create_tables.sql:/docker-entrypoint-initdb.d/001_create_tables.sql:ro
     ports:
-      - "127.0.0.1:25432:5432"
+      - "127.0.0.1:24832:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hash_demo -d hash_demo"]
       interval: 3s
@@ -136,9 +132,8 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: admin
-      PGADMIN_LISTEN_PORT: 80
     ports:
-      - "127.0.0.1:25050:80"
+      - "127.0.0.1:24850:80"
 
 networks:
   besu-a-net:

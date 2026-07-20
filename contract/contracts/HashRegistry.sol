@@ -4,50 +4,45 @@ pragma solidity ^0.8.28;
 contract HashRegistry {
     struct Anchor {
         uint256 sequence;
-        bytes32 previousHash;
+        bytes32 payloadHash;
         address submitter;
         uint64 anchoredAt;
-        bool exists;
     }
 
-    mapping(bytes32 payloadHash => Anchor anchor) private anchors;
     uint256 public lastSequence;
-    bytes32 public lastPayloadHash;
+    mapping(uint256 sequence => Anchor anchor) private anchors;
 
     event HashAnchored(
         uint256 indexed sequence,
         bytes32 indexed payloadHash,
-        bytes32 previousHash,
         address indexed submitter,
         uint64 anchoredAt
     );
 
-    function anchorHash(
-        uint256 sequence,
-        bytes32 payloadHash,
-        bytes32 previousHash
-    ) external {
+    function anchorHash(bytes32 payloadHash) external {
         require(payloadHash != bytes32(0), "hash is zero");
-        require(!anchors[payloadHash].exists, "hash already anchored");
-        require(sequence == lastSequence + 1, "invalid sequence");
-        require(previousHash == lastPayloadHash, "invalid previous hash");
 
-        anchors[payloadHash] = Anchor({
-            sequence: sequence,
-            previousHash: previousHash,
-            submitter: msg.sender,
-            anchoredAt: uint64(block.timestamp),
-            exists: true
-        });
+        uint256 sequence = lastSequence + 1;
+        uint64 anchoredAt = uint64(block.timestamp);
+
         lastSequence = sequence;
-        lastPayloadHash = payloadHash;
+        anchors[sequence] = Anchor({
+            sequence: sequence,
+            payloadHash: payloadHash,
+            submitter: msg.sender,
+            anchoredAt: anchoredAt
+        });
 
         emit HashAnchored(
             sequence,
             payloadHash,
-            previousHash,
             msg.sender,
-            uint64(block.timestamp)
+            anchoredAt
         );
+    }
+
+    function getAnchor(uint256 sequence) external view returns (Anchor memory) {
+        require(sequence > 0 && sequence <= lastSequence, "anchor not found");
+        return anchors[sequence];
     }
 }

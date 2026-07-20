@@ -1,16 +1,7 @@
 using System.Text.Json;
+using HashAnchorDemo.Domain;
 
 namespace HashAnchorDemo;
-
-public sealed record HistoryComparison(
-    ChainAnchorEvent ChainEvent,
-    StoredRecord? DatabaseRecord,
-    bool IsSequenceMatch,
-    bool IsPayloadHashMatch,
-    bool IsPreviousHashMatch,
-    bool IsChainLinkValid,
-    bool IsDatabaseContentHashValid,
-    bool IsMatch);
 
 public sealed class HistoryService
 {
@@ -28,59 +19,64 @@ public sealed class HistoryService
         _hasher = hasher;
     }
 
-    public async Task<IReadOnlyList<HistoryComparison>> ReadAndCompareAsync(
+    public async Task<HistoryAudit> ReadAndCompareAsync(
         CancellationToken cancellationToken)
     {
+        var contractAddress = await _contractService.GetContractAddressAsync(cancellationToken);
         var events = (await _contractService.ReadEventsAsync(cancellationToken))
             .OrderBy(item => item.Sequence)
             .ToArray();
+        var databaseRecords = await _repository.ListRecordsByContractAddressAsync(
+            contractAddress,
+            cancellationToken);
+        var recordsBySequence = databaseRecords
+            .GroupBy(record => record.Sequence)
+            .ToDictionary(group => group.Key, group => group.ToArray());
         var comparisons = new List<HistoryComparison>();
-        long previousSequence = 0;
-        var previousPayloadHash = new string('0', 64);
-
         foreach (var chainEvent in events)
         {
-            var databaseRecord = await _repository.FindBySequenceAsync(
-                chainEvent.Sequence,
-                cancellationToken);
-            var isSequenceMatch = databaseRecord?.Sequence == chainEvent.Sequence;
-            var isPayloadHashMatch = databaseRecord?.PayloadHash == chainEvent.PayloadHash;
-            var isPreviousHashMatch = databaseRecord?.PreviousHash == chainEvent.PreviousHash;
-            var isChainLinkValid = chainEvent.Sequence == previousSequence + 1
-                && chainEvent.PreviousHash == previousPayloadHash;
-            var isDatabaseContentHashValid = IsDatabaseContentHashValid(databaseRecord);
+            recordsBySequence.TryGetValue(chainEvent.Sequence, out var matchedRecords);
+            var databaseRecord = matchedRecords?.FirstOrDefault();
+            var isMatch = databaseRecord is not null
+                && matchedRecords?.Length == 1
+                && IsDatabasePayloadHashMatch(databaseRecord, chainEvent);
 
             comparisons.Add(new HistoryComparison(
                 chainEvent,
                 databaseRecord,
-                isSequenceMatch,
-                isPayloadHashMatch,
-                isPreviousHashMatch,
-                isChainLinkValid,
-                isDatabaseContentHashValid,
-                isSequenceMatch
-                    && isPayloadHashMatch
-                    && isPreviousHashMatch
-                    && isChainLinkValid
-                    && isDatabaseContentHashValid));
-
-            previousSequence = chainEvent.Sequence;
-            previousPayloadHash = chainEvent.PayloadHash;
+                isMatch));
         }
 
-        return comparisons.OrderByDescending(item => item.ChainEvent.Sequence).ToArray();
+        var orderedComparisons = comparisons
+            .OrderByDescending(item => item.ChainEvent.Sequence)
+            .ToArray();
+        return new HistoryAudit(
+            databaseRecords.Count == events.Length
+                && orderedComparisons.All(comparison => comparison.IsMatch),
+            orderedComparisons);
     }
 
-    private bool IsDatabaseContentHashValid(StoredRecord? databaseRecord)
+    private bool IsDatabasePayloadHashMatch(
+        StoredRecord? databaseRecord,
+        ChainAnchorEvent chainEvent)
     {
         if (databaseRecord is null)
         {
             return false;
         }
 
-        using var document = JsonDocument.Parse(databaseRecord.OriginalJson);
-        var processed = _hasher.Process(document.RootElement);
-        return processed.CanonicalJson == databaseRecord.CanonicalJson
-            && processed.Sha256 == databaseRecord.PayloadHash;
+        try
+        {
+            using var document = JsonDocument.Parse(databaseRecord.OriginalJson);
+            var processed = _hasher.Process(document.RootElement);
+            return EqualsIgnoreCase(processed.PayloadHash, chainEvent.PayloadHash);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
+
+    private static bool EqualsIgnoreCase(string? first, string? second) =>
+        string.Equals(first, second, StringComparison.OrdinalIgnoreCase);
 }

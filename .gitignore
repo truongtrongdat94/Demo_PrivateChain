@@ -1,5 +1,12 @@
 bin/
 obj/
+backend/bin/
+backend/obj/
+backend/contract/cache/
+backend/contract/node_modules/
+backend/contract/artifacts/
 contract/cache/
 contract/node_modules/
 contract/artifacts/
+simulator/.config*
+simulator/.flows*

@@ -1,4 +1,4 @@
-name: dotnet-besu-hash-demo
+name: besu-chain
 
 x-besu-healthcheck: &besu-healthcheck
   test:
@@ -15,26 +15,6 @@ x-besu-healthcheck: &besu-healthcheck
   start_period: 15s
 
 services:
-  app:
-    build:
-      context: .
-    restart: unless-stopped
-    depends_on:
-      besu-b:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-    environment:
-      AutoDeployContract: "true"
-      ConnectionStrings__HashDemo: Host=postgres;Port=5432;Database=hash_demo;Username=hash_demo;Password=hash_demo
-      Besu__RpcUrl: http://besu-b:8545
-      Besu__ChainId: "1337"
-    ports:
-      - "5000:5000"
-    networks:
-      default:
-      besu-b-net:
-
   besu-a:
     image: hyperledger/besu:26.6.1
     user: "0:0"
@@ -105,36 +85,6 @@ services:
       besu-b-net:
         ipv4_address: 172.31.2.2
 
-  postgres:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: hash_demo
-      POSTGRES_USER: hash_demo
-      POSTGRES_PASSWORD: hash_demo
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./db/001_create_tables.sql:/docker-entrypoint-initdb.d/001_create_tables.sql:ro
-    ports:
-      - "127.0.0.1:24832:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hash_demo -d hash_demo"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
-
-  pgadmin:
-    image: dpage/pgadmin4:9.4
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "127.0.0.1:24850:80"
-
 networks:
   besu-a-net:
     driver: bridge
@@ -150,4 +100,3 @@ networks:
 volumes:
   besu-a-data:
   besu-b-data:
-  postgres-data:

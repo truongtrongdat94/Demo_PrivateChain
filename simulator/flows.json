@@ -1,0 +1,118 @@
+[
+  {
+    "id": "water-quality-flow",
+    "type": "tab",
+    "label": "M1 Water Quality Simulator",
+    "disabled": false,
+    "info": "Publishes virtual water-quality readings to RabbitMQ MQTT plugin."
+  },
+  {
+    "id": "publish-interval",
+    "type": "inject",
+    "z": "water-quality-flow",
+    "name": "Publish every 5 seconds",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "5",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "1",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 120,
+    "wires": [
+      [
+        "build-station-readings"
+      ]
+    ]
+  },
+  {
+    "id": "build-station-readings",
+    "type": "function",
+    "z": "water-quality-flow",
+    "name": "Build 2 station readings",
+    "func": "const stations = [\n    { stationId: 'station-01', stationName: 'Virtual Station 01' },\n    { stationId: 'station-02', stationName: 'Virtual Station 02' }\n];\n\nfunction random(min, max, decimals = 2) {\n    return Number((min + Math.random() * (max - min)).toFixed(decimals));\n}\n\nreturn [stations.map(station => ({\n    topic: `SmartEMS/WaterQuality/${station.stationId}/Reading`,\n    payload: {\n        schemaVersion: '1.0',\n        stationId: station.stationId,\n        stationName: station.stationName,\n        observedAt: new Date().toISOString(),\n        readings: {\n            ph: random(6.5, 8.5),\n            cod: random(20, 80),\n            bod: random(5, 35),\n            tss: random(10, 60),\n            flow: random(80, 180),\n            temperature: random(24, 34)\n        }\n    }\n}))];",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 120,
+    "wires": [
+      [
+        "rabbitmq-mqtt-out",
+        "debug-output"
+      ]
+    ]
+  },
+  {
+    "id": "rabbitmq-mqtt-out",
+    "type": "mqtt out",
+    "z": "water-quality-flow",
+    "name": "RabbitMQ MQTT",
+    "topic": "",
+    "qos": "1",
+    "retain": "",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "rabbitmq-broker",
+    "x": 650,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "debug-output",
+    "type": "debug",
+    "z": "water-quality-flow",
+    "name": "Published payload",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 650,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "rabbitmq-broker",
+    "type": "mqtt-broker",
+    "name": "RabbitMQ MQTT",
+    "broker": "rabbitmq",
+    "port": "1883",
+    "clientid": "node-red-water-quality-simulator",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthPayload": "",
+    "birthMsg": {},
+    "closeTopic": "",
+    "closeQos": "0",
+    "closePayload": "",
+    "closeMsg": {},
+    "willTopic": "",
+    "willQos": "0",
+    "willPayload": "",
+    "willMsg": {},
+    "userProps": "",
+    "sessionExpiry": "",
+    "credentials": {}
+  }
+]

@@ -1,0 +1,29 @@
+name: broker
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    restart: unless-stopped
+    command: >
+      sh -c "rabbitmq-plugins enable --offline rabbitmq_mqtt rabbitmq_management &&
+             rabbitmq-server"
+    environment:
+      RABBITMQ_DEFAULT_USER: ems
+      RABBITMQ_DEFAULT_PASS: ems
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+      - "127.0.0.1:1883:1883"
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - broker-net
+
+networks:
+  broker-net:
+    name: broker-net

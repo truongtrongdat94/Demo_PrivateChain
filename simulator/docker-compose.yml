@@ -1,0 +1,19 @@
+name: simulator
+
+services:
+  node-red:
+    image: nodered/node-red:4.0.9
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Bangkok
+    ports:
+      - "127.0.0.1:1880:1880"
+    volumes:
+      - ./flows.json:/data/flows.json:ro
+    networks:
+      - broker-net
+
+networks:
+  broker-net:
+    external: true
+    name: broker-net

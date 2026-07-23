@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Giám sát chất lượng nước</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">SMART EMS · BESU HASH ANCHOR</p>
+      <h1>Giám sát chất lượng nước</h1>
+      <p class="subtitle">Dữ liệu cảm biến và trạng thái đối chiếu blockchain</p>
+    </div>
+    <div id="connection-status" class="connection-status" role="status" aria-live="polite">
+      <span class="connection-dot"></span>
+      <span>Đang kết nối</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="summary-grid" aria-label="Tổng quan">
+      <article class="summary-card">
+        <span>Bản ghi đang hiển thị</span>
+        <strong id="record-count">0</strong>
+      </article>
+      <article class="summary-card">
+        <span>Chờ ghi chain</span>
+        <strong id="pending-count">0</strong>
+      </article>
+      <article class="summary-card">
+        <span>Đã ghi chain</span>
+        <strong id="anchored-count">0</strong>
+      </article>
+      <article class="summary-card">
+        <span>Cập nhật gần nhất</span>
+        <strong id="last-updated" class="summary-time">—</strong>
+      </article>
+    </section>
+
+    <section class="panel controls" aria-label="Bộ lọc dữ liệu">
+      <div class="control-group">
+        <label for="station-filter">Trạm</label>
+        <select id="station-filter">
+          <option value="">Tất cả trạm</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="status-filter">Trạng thái ghi chain</label>
+        <select id="status-filter">
+          <option value="">Tất cả</option>
+          <option value="pending">Pending</option>
+          <option value="anchored">Anchored</option>
+        </select>
+      </div>
+      <button id="refresh-button" class="secondary-button" type="button">Làm mới</button>
+      <span class="poll-note">Tự động làm mới mỗi 5 giây</span>
+    </section>
+
+    <section aria-labelledby="charts-heading">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">DIỄN BIẾN CHỈ SỐ</p>
+          <h2 id="charts-heading">Dữ liệu theo thời gian</h2>
+        </div>
+        <span id="chart-scope" class="section-note">Tất cả trạm</span>
+      </div>
+
+      <div class="chart-grid">
+        <article class="chart-card">
+          <div><h3>pH</h3><span>0–14</span></div>
+          <canvas data-metric="ph" aria-label="Biểu đồ pH"></canvas>
+        </article>
+        <article class="chart-card">
+          <div><h3>COD</h3><span>mg/L</span></div>
+          <canvas data-metric="cod" aria-label="Biểu đồ COD"></canvas>
+        </article>
+        <article class="chart-card">
+          <div><h3>BOD</h3><span>mg/L</span></div>
+          <canvas data-metric="bod" aria-label="Biểu đồ BOD"></canvas>
+        </article>
+        <article class="chart-card">
+          <div><h3>TSS</h3><span>mg/L</span></div>
+          <canvas data-metric="tss" aria-label="Biểu đồ TSS"></canvas>
+        </article>
+        <article class="chart-card">
+          <div><h3>Lưu lượng</h3><span>m³/h</span></div>
+          <canvas data-metric="flow" aria-label="Biểu đồ lưu lượng"></canvas>
+        </article>
+        <article class="chart-card">
+          <div><h3>Nhiệt độ</h3><span>°C</span></div>
+          <canvas data-metric="temperature" aria-label="Biểu đồ nhiệt độ"></canvas>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel records-panel" aria-labelledby="records-heading">
+      <div class="section-heading table-heading">
+        <div>
+          <p class="eyebrow">CHI TIẾT BẢN GHI</p>
+          <h2 id="records-heading">Dữ liệu cảm biến</h2>
+        </div>
+        <div class="table-actions">
+          <span class="section-note">Verify all ki?m tra to�n b? batch tr�n blockchain v� d?i chi?u v?i DB</span>
+          <button id="verify-all-button" class="verify-button" type="button">Verify all</button>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Trạm</th>
+              <th>Thời điểm</th>
+              <th>pH</th>
+              <th>COD</th>
+              <th>BOD</th>
+              <th>TSS</th>
+              <th>Lưu lượng</th>
+              <th>Nhiệt độ</th>
+              <th>Batch</th>
+              <th>Ghi chain</th>
+              <th>Đối chiếu</th>
+            </tr>
+          </thead>
+          <tbody id="records-body"></tbody>
+        </table>
+        <p id="empty-state" class="empty-state" hidden>Chưa có dữ liệu phù hợp với bộ lọc.</p>
+      </div>
+      <div class="load-more-actions">
+        <button id="load-more-button" class="secondary-button" type="button">Load more</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="alert" hidden></div>
+</body>
+</html>

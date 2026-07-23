@@ -30,24 +30,28 @@ services:
       - --p2p-host=192.168.65.254
       - --p2p-port=31311
       - --discovery-enabled=false
+      - --static-nodes-file=/config/static-nodes-a.json
       - --nat-method=NONE
       - --min-gas-price=0
       - --rpc-http-enabled=true
       - --rpc-http-host=0.0.0.0
       - --rpc-http-port=8545
-      - --rpc-http-api=ETH
-      - --host-allowlist=localhost,127.0.0.1,besu-a
+      - --rpc-http-api=ETH,NET
+      - --host-allowlist=localhost,127.0.0.1,host.docker.internal,besu-a
     volumes:
       - ./config/besu/genesis.json:/config/genesis.json:ro
       - ./config/besu/server-a-key:/config/node-key:ro
+      - ./config/besu/static-nodes-a.json:/config/static-nodes-a.json:ro
       - besu-a-data:/var/lib/besu
     ports:
       - "127.0.0.1:28545:8545"
       - "31311:31311/tcp"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck: *besu-healthcheck
     networks:
       besu-a-net:
-        ipv4_address: 172.31.1.2
+        ipv4_address: 172.33.1.2
 
   besu-b:
     image: hyperledger/besu:26.6.1
@@ -70,8 +74,8 @@ services:
       - --rpc-http-enabled=true
       - --rpc-http-host=0.0.0.0
       - --rpc-http-port=8545
-      - --rpc-http-api=ETH
-      - --host-allowlist=localhost,127.0.0.1,besu-b
+      - --rpc-http-api=ETH,NET
+      - --host-allowlist=localhost,127.0.0.1,host.docker.internal,besu-b
     volumes:
       - ./config/besu/genesis.json:/config/genesis.json:ro
       - ./config/besu/server-b-key:/config/node-key:ro
@@ -80,22 +84,24 @@ services:
     ports:
       - "127.0.0.1:28546:8545"
       - "31312:31312/tcp"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck: *besu-healthcheck
     networks:
       besu-b-net:
-        ipv4_address: 172.31.2.2
+        ipv4_address: 172.33.2.2
 
 networks:
   besu-a-net:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.31.1.0/24
+        - subnet: 172.33.1.0/24
   besu-b-net:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.31.2.0/24
+        - subnet: 172.33.2.0/24
 
 volumes:
   besu-a-data:

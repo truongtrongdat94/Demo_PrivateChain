@@ -10,6 +10,7 @@ services:
       - "127.0.0.1:1880:1880"
     volumes:
       - ./flows.json:/data/flows.json:ro
+      - ./flows_cred.json:/data/flows_cred.json:ro
     networks:
       - broker-net
 

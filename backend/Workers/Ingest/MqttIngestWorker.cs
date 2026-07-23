@@ -1,23 +1,25 @@
 using System.Text;
+using HashAnchorDemo.Configuration;
+using HashAnchorDemo.Services.Records;
 using Microsoft.Extensions.Options;
 using MQTTnet;
 using MQTTnet.Client;
 
-namespace HashAnchorDemo;
+namespace HashAnchorDemo.Workers.Ingest;
 
 public sealed class MqttIngestWorker : BackgroundService
 {
-    private readonly MqttOptions _options;
-    private readonly SensorIngestService _ingestService;
+    private readonly MqttConfig _options;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<MqttIngestWorker> _logger;
 
     public MqttIngestWorker(
-        IOptions<MqttOptions> options,
-        SensorIngestService ingestService,
+        IOptions<MqttConfig> options,
+        IServiceScopeFactory scopeFactory,
         ILogger<MqttIngestWorker> logger)
     {
         _options = options.Value;
-        _ingestService = ingestService;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -26,15 +28,20 @@ public sealed class MqttIngestWorker : BackgroundService
         var factory = new MqttFactory();
         using var client = factory.CreateMqttClient();
 
-        client.ApplicationMessageReceivedAsync += HandleMessageAsync;
+        client.ApplicationMessageReceivedAsync += eventArgs =>
+            HandleMessageAsync(eventArgs, stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                var clientOptions = new MqttClientOptionsBuilder()
-                    .WithTcpServer(_options.Host, _options.Port)
-                    .Build();
+                var clientOptionsBuilder = new MqttClientOptionsBuilder()
+                    .WithTcpServer(_options.Host, _options.Port);
+
+                if (!string.IsNullOrWhiteSpace(_options.Username))
+                    clientOptionsBuilder.WithCredentials(_options.Username, _options.Password);
+
+                var clientOptions = clientOptionsBuilder.Build();
 
                 await client.ConnectAsync(clientOptions, stoppingToken);
                 await client.SubscribeAsync(
@@ -66,18 +73,23 @@ public sealed class MqttIngestWorker : BackgroundService
         }
     }
 
-    private async Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs eventArgs)
+    private async Task HandleMessageAsync(
+        MqttApplicationMessageReceivedEventArgs eventArgs,
+        CancellationToken cancellationToken)
     {
         var rawPayload = Encoding.UTF8.GetString(eventArgs.ApplicationMessage.PayloadSegment);
 
         try
         {
-            var stored = await _ingestService.IngestAsync(rawPayload, CancellationToken.None);
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var ingestService = scope.ServiceProvider.GetRequiredService<SensorIngestService>();
+            var recordId = await ingestService.IngestAsync(rawPayload, cancellationToken);
             _logger.LogInformation(
-                "Stored sensor reading {Id} from {StationId} with hash {PayloadHash}",
-                stored.Id,
-                stored.StationId,
-                stored.PayloadHash);
+                "Stored sensor reading {Id}",
+                recordId);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception exception)
         {
@@ -88,4 +100,3 @@ public sealed class MqttIngestWorker : BackgroundService
         }
     }
 }
-

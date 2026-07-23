@@ -2,47 +2,39 @@
 pragma solidity ^0.8.28;
 
 contract HashRegistry {
-    struct Anchor {
-        uint256 sequence;
-        bytes32 payloadHash;
+    struct BatchAnchor {
+        bytes32 merkleRoot;
         address submitter;
         uint64 anchoredAt;
     }
 
-    uint256 public lastSequence;
-    mapping(uint256 sequence => Anchor anchor) private anchors;
+    mapping(uint256 batchId => BatchAnchor anchor) public batchAnchors;
 
-    event HashAnchored(
-        uint256 indexed sequence,
-        bytes32 indexed payloadHash,
+    event BatchAnchored(
+        uint256 indexed batchId,
+        bytes32 indexed merkleRoot,
         address indexed submitter,
         uint64 anchoredAt
     );
 
-    function anchorHash(bytes32 payloadHash) external {
-        require(payloadHash != bytes32(0), "hash is zero");
+    function anchorBatch(uint256 batchId, bytes32 merkleRoot) external {
+        require(batchId > 0, "batch id is zero");
+        require(merkleRoot != bytes32(0), "root is zero");
+        require(batchAnchors[batchId].anchoredAt == 0, "batch already anchored");
 
-        uint256 sequence = lastSequence + 1;
         uint64 anchoredAt = uint64(block.timestamp);
 
-        lastSequence = sequence;
-        anchors[sequence] = Anchor({
-            sequence: sequence,
-            payloadHash: payloadHash,
+        batchAnchors[batchId] = BatchAnchor({
+            merkleRoot: merkleRoot,
             submitter: msg.sender,
             anchoredAt: anchoredAt
         });
 
-        emit HashAnchored(
-            sequence,
-            payloadHash,
+        emit BatchAnchored(
+            batchId,
+            merkleRoot,
             msg.sender,
             anchoredAt
         );
-    }
-
-    function getAnchor(uint256 sequence) external view returns (Anchor memory) {
-        require(sequence > 0 && sequence <= lastSequence, "anchor not found");
-        return anchors[sequence];
     }
 }

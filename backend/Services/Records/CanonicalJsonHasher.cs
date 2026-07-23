@@ -1,21 +1,21 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using HashAnchorDemo.Domain;
-
-namespace HashAnchorDemo;
+namespace HashAnchorDemo.Services.Records;
 
 public sealed class CanonicalJsonHasher
 {
-    public ProcessedRecord Process(JsonElement payload)
+    public string HashRawJson(string rawJson)
     {
-        var originalJson = payload.GetRawText();
+        using var document = JsonDocument.Parse(rawJson);
+        return Hash(document.RootElement);
+    }
+
+    public string Hash(JsonElement payload)
+    {
         var canonicalJson = WriteCanonicalJson(payload);
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalJson));
-
-        return new ProcessedRecord(
-            originalJson,
-            Convert.ToHexString(hash).ToLowerInvariant());
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     private static string WriteCanonicalJson(JsonElement payload)

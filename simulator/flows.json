@@ -10,13 +10,13 @@
     "id": "publish-interval",
     "type": "inject",
     "z": "water-quality-flow",
-    "name": "Publish every 5 seconds",
+    "name": "Publish every 30 seconds",
     "props": [
       {
         "p": "payload"
       }
     ],
-    "repeat": "5",
+    "repeat": "30",
     "crontab": "",
     "once": true,
     "onceDelay": "1",
@@ -113,6 +113,9 @@
     "willMsg": {},
     "userProps": "",
     "sessionExpiry": "",
-    "credentials": {}
+    "credentials": {
+      "user": "ems",
+      "password": "ems"
+    }
   }
 ]

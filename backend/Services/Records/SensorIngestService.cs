@@ -1,7 +1,7 @@
 using System.Text.Json;
-using HashAnchorDemo.Domain;
+using HashAnchorDemo.Repositories.Records;
 
-namespace HashAnchorDemo;
+namespace HashAnchorDemo.Services.Records;
 
 public sealed class SensorIngestService
 {
@@ -10,34 +10,28 @@ public sealed class SensorIngestService
         PropertyNameCaseInsensitive = true
     };
 
-    private readonly CanonicalJsonHasher _hasher;
     private readonly RecordRepository _repository;
 
-    public SensorIngestService(CanonicalJsonHasher hasher, RecordRepository repository)
+    public SensorIngestService(RecordRepository repository)
     {
-        _hasher = hasher;
         _repository = repository;
     }
 
-    public async Task<StoredRecord> IngestAsync(
+    public async Task<long> IngestAsync(
         string rawPayload,
         CancellationToken cancellationToken)
     {
         using var document = JsonDocument.Parse(rawPayload);
-        var reading = document.RootElement.Deserialize<SensorReadingMessage>(SerializerOptions)
+        var reading = document.RootElement.Deserialize<SensorReadingMessageDto>(SerializerOptions)
             ?? throw new InvalidOperationException("MQTT payload must be a JSON object.");
 
         Validate(reading);
-        var processed = _hasher.Process(document.RootElement);
-
         return await _repository.SaveRecordAsync(
-            reading.StationId!,
-            reading.ObservedAt!.Value,
-            processed,
+            document.RootElement.GetRawText(),
             cancellationToken);
     }
 
-    private static void Validate(SensorReadingMessage reading)
+    private static void Validate(SensorReadingMessageDto reading)
     {
         if (reading.SchemaVersion != "1.0")
             throw new InvalidOperationException("schemaVersion must be 1.0.");
@@ -66,4 +60,19 @@ public sealed class SensorIngestService
             throw new InvalidOperationException("All readings are required; COD, BOD, TSS and flow must be non-negative.");
         }
     }
+
+    private sealed record SensorReadingMessageDto(
+        string? SchemaVersion,
+        string? StationId,
+        string? StationName,
+        DateTimeOffset? ObservedAt,
+        WaterQualityReadingsDto? Readings);
+
+    private sealed record WaterQualityReadingsDto(
+        decimal? Ph,
+        decimal? Cod,
+        decimal? Bod,
+        decimal? Tss,
+        decimal? Flow,
+        decimal? Temperature);
 }

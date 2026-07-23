@@ -1,0 +1,23 @@
+name: frontend
+
+services:
+  dashboard:
+    build:
+      context: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:25100:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

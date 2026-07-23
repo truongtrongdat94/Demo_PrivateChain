@@ -25,6 +25,5 @@ backend/    M2, M3, M4 và API
 contract/   HashRegistry.sol và script compile/deploy
 chain/      Docker Compose và cấu hình 2 node Besu
 frontend/   Dashboard HTML/CSS/JavaScript
-blockscout/ UI để quan sát trực tiếp block, transaction, log trên Besu
 script_m6/  Script giả mạo dữ liệu DB
 ```

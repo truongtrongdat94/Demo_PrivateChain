@@ -1,8 +1,3 @@
-# Demo neo dữ liệu cảm biến lên Besu
-
-Demo mô phỏng dữ liệu chất lượng nước, lưu JSON trong PostgreSQL và neo Merkle root của từng batch lên Hyperledger Besu. Khi verify, backend dựng lại root từ DB rồi so với blockchain.
-
-## Đã làm
 
 | Mốc | Nội dung |
 | --- | --- |
@@ -13,7 +8,7 @@ Demo mô phỏng dữ liệu chất lượng nước, lưu JSON trong PostgreSQL
 | **M5** | Dashboard bảng, biểu đồ 6 chỉ tiêu, lọc/phân trang và nút **Verify all**. |
 | **M6** | Script sửa có chủ đích một row trong PostgreSQL để demo kết quả `TAMPERED`. |
 
-## Cách đọc source nhanh
+##
 
 ```text
 simulator/  Node-RED tạo dữ liệu M1
@@ -33,9 +28,3 @@ frontend/   Dashboard HTML/CSS/JavaScript
 blockscout/ UI để quan sát trực tiếp block, transaction, log trên Besu
 script_m6/  Script giả mạo dữ liệu DB
 ```
-
-## Điểm chính cần biết
-
-- PostgreSQL lưu JSON gốc và batch mà record thuộc về.
-- Contract chỉ lưu `batchId -> merkleRoot, submitter, anchoredAt`; không lưu JSON cảm biến.
-- `contract/deployments/` được tạo sau khi deploy, chứa địa chỉ contract để backend kết nối.

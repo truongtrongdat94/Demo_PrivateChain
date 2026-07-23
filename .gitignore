@@ -8,5 +8,6 @@ backend/contract/artifacts/
 contract/cache/
 contract/node_modules/
 contract/artifacts/
+contract/deployments/
 simulator/.config*
 simulator/.flows*

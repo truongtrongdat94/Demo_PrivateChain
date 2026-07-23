@@ -8,11 +8,23 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - ../contract/deployments/backend.env
     environment:
       ConnectionStrings__HashDemo: Host=postgres;Port=5432;Database=hash_demo;Username=hash_demo;Password=hash_demo
       Mqtt__Host: rabbitmq
       Mqtt__Port: "1883"
       Mqtt__Topic: SmartEMS/WaterQuality/+/Reading
+      Mqtt__Username: ems
+      Mqtt__Password: ems
+      Blockchain__RpcUrl: http://host.docker.internal:28546
+      Blockchain__AccountPrivateKey: 0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63
+      Batcher__IntervalSeconds: "60"
+      ASPNETCORE_URLS: http://+:8080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:25000:8080"
     networks:
       - default
       - broker-net

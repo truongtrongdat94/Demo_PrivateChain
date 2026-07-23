@@ -1,36 +1,22 @@
 param(
-    [string]$BackendProject = "../backend",
-    [switch]$SkipDotnetDeploy
+    [string]$RpcUrl = "http://127.0.0.1:28546",
+    [string]$ChainId = "1337"
 )
 
 $ErrorActionPreference = "Stop"
 
 $contractRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$backendRoot = Resolve-Path (Join-Path $contractRoot $BackendProject)
-$artifactSource = Join-Path $contractRoot "artifacts/contracts/HashRegistry.sol/HashRegistry.json"
-$artifactTargetDirectory = Join-Path $backendRoot "contract-artifacts"
-$artifactTarget = Join-Path $artifactTargetDirectory "HashRegistry.json"
-
 Push-Location $contractRoot
 try {
     if (-not (Test-Path -LiteralPath "node_modules")) {
-        npm ci
+        npm.cmd ci
     }
 
-    npm run compile
+    npm.cmd run compile
+    $env:BESU_RPC_URL = $RpcUrl
+    $env:BESU_CHAIN_ID = $ChainId
+    npm.cmd run deploy
 }
 finally {
     Pop-Location
-}
-
-if (-not (Test-Path -LiteralPath $artifactSource)) {
-    throw "Contract artifact not found: $artifactSource"
-}
-
-New-Item -ItemType Directory -Force -Path $artifactTargetDirectory | Out-Null
-Copy-Item -LiteralPath $artifactSource -Destination $artifactTarget -Force
-Write-Host "Copied contract artifact to $artifactTarget"
-
-if (-not $SkipDotnetDeploy) {
-    dotnet run --project $backendRoot -- deploy
 }

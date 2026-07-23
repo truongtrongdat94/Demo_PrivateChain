@@ -1,0 +1,6 @@
+{
+  "rabbitmq-broker": {
+    "user": "ems",
+    "password": "ems"
+  }
+}
